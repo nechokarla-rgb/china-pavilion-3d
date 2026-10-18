@@ -1,0 +1,29 @@
+<!doctype html><html lang="zh-CN"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>中国馆 · 3D 预览</title>
+<style>*{box-sizing:border-box}body{margin:0;font:15px "Microsoft YaHei",sans-serif;color:#263332;background:#ecefed}canvas{display:block;width:100%;height:100vh;touch-action:none}header{position:absolute;top:28px;left:32px;pointer-events:none}h1{font-size:23px;margin:0 0 8px;font-weight:600}p{margin:0;color:#65716c;font-size:13px}.controls{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:94%;padding:12px;border:1px solid #d5dcd7;background:#fffffff2;border-radius:16px;box-shadow:0 8px 30px #203a2710}button{border:1px solid #dce1dd;border-radius:9px;background:#fff;color:#34423a;padding:10px 15px;font:inherit;cursor:pointer}button:hover{background:#f1f4f1}button[aria-pressed=true]{background:#a72529;color:white;border-color:#a72529}#status{position:absolute;top:30px;right:30px;font-size:13px;color:#66766d}#error{position:absolute;top:40%;left:10%;right:10%;text-align:center;color:#a72529}@media(max-width:600px){header{top:20px;left:20px}h1{font-size:19px}#status{top:88px;left:20px}.controls{bottom:16px}button{font-size:13px;padding:9px 12px}}</style>
+<header><h1>上海世博会中国馆</h1><p>左键拖动旋转 · 右键拖动平移 · 滚轮缩放</p></header><div id="status">正在加载模型…</div><div id="error" role="alert"></div>
+<nav class="controls" aria-label="模型视角"><button data-view="home">全景</button><button data-view="front">正面</button><button data-view="side">侧面</button><button data-view="roof">屋顶</button><button id="rotate" aria-pressed="false">自动旋转</button><button id="pan" aria-pressed="false">左键平移</button><button id="in" aria-label="放大">放大 ＋</button><button id="out" aria-label="缩小">缩小 −</button></nav>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from './vendor/OrbitControls.js';
+import {GLTFLoader} from './vendor/GLTFLoader.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color('#ecefed');
+const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.1,500);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;document.body.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.minDistance=8;controls.maxDistance=120;controls.maxPolarAngle=Math.PI*.49;controls.target.set(0,6,0);
+scene.add(new THREE.HemisphereLight(0xf4f8ff,0xb8bab4,3.0));
+const sun=new THREE.DirectionalLight(0xfff4e4,2.0);sun.position.set(-20,35,25);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-30,right:30,top:30,bottom:-30,near:1,far:100});sun.shadow.normalBias=.03;scene.add(sun);
+const fill=new THREE.DirectionalLight(0xffffff,2.0);fill.position.set(25,18,-15);scene.add(fill);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshStandardMaterial({color:0xe6e9e5,roughness:1}));floor.rotation.x=-Math.PI/2;floor.position.y=-.04;floor.receiveShadow=true;scene.add(floor);
+const presets={home:[35,14,46],front:[0,10,55],side:[55,10,0],roof:[27,48,33]};
+function view(name){controls.autoRotate=false;document.querySelector('#rotate').setAttribute('aria-pressed','false');camera.position.set(...presets[name]).multiplyScalar(Math.max(1,1.35/camera.aspect));controls.target.set(0,6,0);controls.update();document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===name)));}
+view('home');
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>view(b.dataset.view));
+document.querySelector('#rotate').onclick=e=>{controls.autoRotate=!controls.autoRotate;e.currentTarget.setAttribute('aria-pressed',String(controls.autoRotate))};
+document.querySelector('#pan').onclick=e=>{const on=e.currentTarget.getAttribute('aria-pressed')!=='true';e.currentTarget.setAttribute('aria-pressed',String(on));controls.mouseButtons.LEFT=on?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE;e.currentTarget.textContent=on?'恢复左键旋转':'左键平移'};
+function zoom(f){camera.position.sub(controls.target).multiplyScalar(f).add(controls.target);controls.update()}
+document.querySelector('#in').onclick=()=>zoom(.8);document.querySelector('#out').onclick=()=>zoom(1.25);
+new GLTFLoader().load('./pavilion.glb?v=presentation3',g=>{g.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=false;}});scene.add(g.scene);document.querySelector('#status').textContent='模型已就绪';window.viewerReady=true},undefined,e=>{document.querySelector('#status').textContent='加载失败';document.querySelector('#error').textContent='模型加载失败，请重新启动预览并刷新。';console.error(e)});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera)});
+</script></html>
